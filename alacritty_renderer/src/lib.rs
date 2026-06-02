@@ -67,6 +67,19 @@ pub mod config {
 		}
 
 		impl Font {
+			/// Build a font from a single font-file path + point size. (fressh)
+			///
+			/// On platforms without font discovery (Android/iOS, via the fressh
+			/// crossfont fork's direct backend) the family string is treated as a
+			/// font file path. All styles fall back to this one file.
+			pub fn from_path(path: impl Into<String>, size_pt: f32) -> Font {
+				Font {
+					normal: FontDescription { family: path.into(), style: None },
+					size: Size(FontSize::new(size_pt)),
+					..Font::default()
+				}
+			}
+
 			pub fn with_size(self, size: FontSize) -> Font {
 				Font { size: Size(size), ..self }
 			}
