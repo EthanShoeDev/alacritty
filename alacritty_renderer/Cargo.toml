@@ -1,0 +1,28 @@
+[package]
+name = "alacritty_renderer"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85.0"
+description = "Alacritty's GLES2/GLSL3 cell renderer, extracted as a standalone library for embedding (fressh fork)."
+license = "Apache-2.0"
+
+# This crate #[path]-includes the upstream renderer draw code from
+# ../alacritty/src/renderer/ and shims the few support types it needs, so it
+# builds WITHOUT the binary crate's config/window/winit/glutin/serde machinery.
+# See packages/react-native-terminal: docs §6 "Measured cut-line".
+
+[dependencies]
+# Engine: published crate, pinned EXACT to match fressh-core's dep so cargo
+# unifies to one `alacritty_terminal` instance (shared `Term`/grid types).
+alacritty_terminal = "=0.26.0"
+
+# Glyph rasterization (FreeType/CoreText). The mobile font rider.
+crossfont = "0.8.1"
+
+ahash = { version = "0.8.6", features = ["no-rng"] }
+bitflags = "2"
+log = "0.4"
+unicode-width = "0.2"
+
+[build-dependencies]
+gl_generator = "0.14.0"

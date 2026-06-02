@@ -37,7 +37,7 @@ dependencies = [
  "ahash",
  "alacritty_config",
  "alacritty_config_derive",
- "alacritty_terminal",
+ "alacritty_terminal 0.26.0",
  "bitflags 2.9.4",
  "clap",
  "clap_complete",
@@ -94,6 +94,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "alacritty_renderer"
+version = "0.1.0"
+dependencies = [
+ "ahash",
+ "alacritty_terminal 0.26.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bitflags 2.9.4",
+ "crossfont",
+ "gl_generator",
+ "log",
+ "unicode-width",
+]
+
+[[package]]
 name = "alacritty_terminal"
 version = "0.26.0"
 dependencies = [
@@ -111,6 +124,31 @@ dependencies = [
  "rustix-openpty",
  "serde",
  "serde_json",
+ "signal-hook",
+ "unicode-width",
+ "vte",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "alacritty_terminal"
+version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bda177466b9524d59f1b12f0dd30b68696788e9992a7e959021c4a0ed96fcf59"
+dependencies = [
+ "base64",
+ "bitflags 2.9.4",
+ "home",
+ "libc",
+ "log",
+ "miow",
+ "parking_lot",
+ "piper",
+ "polling",
+ "regex-automata",
+ "rustix 1.1.2",
+ "rustix-openpty",
+ "serde",
  "signal-hook",
  "unicode-width",
  "vte",

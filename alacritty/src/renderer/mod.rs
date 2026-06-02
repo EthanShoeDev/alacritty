@@ -7,8 +7,8 @@ use std::{fmt, ptr};
 
 use ahash::RandomState;
 use crossfont::Metrics;
-use glutin::context::{ContextApi, GlContext, PossiblyCurrentContext};
-use glutin::display::{GetGlDisplay, GlDisplay};
+use std::ffi::c_void;
+
 use log::{LevelFilter, debug, info};
 use unicode_width::UnicodeWidthChar;
 
@@ -23,7 +23,8 @@ use crate::gl;
 use crate::renderer::rects::{RectRenderer, RenderRect};
 use crate::renderer::shader::ShaderError;
 
-pub mod platform;
+// `platform` (glutin/winit context creation) is dropped in this fork: the
+// context seam lives in the embedder. See alacritty_renderer/src/lib.rs.
 pub mod rects;
 mod shader;
 mod text;
@@ -117,16 +118,17 @@ impl Renderer {
     /// This will automatically pick between the GLES2 and GLSL3 renderer based on the GPU's
     /// supported OpenGL version.
     pub fn new(
-        context: &PossiblyCurrentContext,
+        mut get_proc_address: impl FnMut(&CStr) -> *const c_void,
+        is_gles_context: bool,
         renderer_preference: Option<RendererPreference>,
     ) -> Result<Self, Error> {
-        // We need to load OpenGL functions once per instance, but only after we make our context
-        // current due to WGL limitations.
+        // Context seam (fork): the embedder loads GL function pointers and tells
+        // us whether the context is GLES. Load OpenGL functions once per
+        // instance, after the embedder has made its context current.
         if !GL_FUNS_LOADED.swap(true, Ordering::Relaxed) {
-            let gl_display = context.display();
             gl::load_with(|symbol| {
                 let symbol = CString::new(symbol).unwrap();
-                gl_display.get_proc_address(symbol.as_c_str()).cast()
+                get_proc_address(symbol.as_c_str()).cast()
             });
         }
 
@@ -139,8 +141,6 @@ impl Renderer {
 
         // Check if robustness is supported.
         let robustness = Self::supports_robustness();
-
-        let is_gles_context = matches!(context.context_api(), ContextApi::Gles(_));
 
         // Use the config option to enforce a particular renderer configuration.
         let (use_glsl3, allow_dsb) = match renderer_preference {
