@@ -443,7 +443,18 @@ impl RectShaderProgram {
             RectKind::DashedUnderline => Some("#define DRAW_DASHED\n"),
             _ => None,
         };
-        let program = ShaderProgram::new(shader_version, header, RECT_SHADER_V, RECT_SHADER_F)?;
+        // fressh fork: bind aPos/aColor to the locations the VBO setup hardcodes
+        // (0/1) before linking, so GLSL ES 2.0 (no `layout(location=)`) renders rects
+        // on drivers that don't assign attribute locations in declaration order
+        // (Mali-G715 — beam/underline/hollow cursors were blank). See
+        // `ShaderProgram::new_with_attributes`.
+        let program = ShaderProgram::new_with_attributes(
+            shader_version,
+            header,
+            RECT_SHADER_V,
+            RECT_SHADER_F,
+            &[(c"aPos", 0), (c"aColor", 1)],
+        )?;
 
         Ok(Self {
             u_cell_width: program.get_uniform_location(c"cellWidth").ok(),

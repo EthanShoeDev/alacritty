@@ -34,6 +34,27 @@ impl ShaderProgram {
         vertex_shader: &'static str,
         fragment_shader: &'static str,
     ) -> Result<Self, ShaderError> {
+        Self::new_with_attributes(shader_version, shader_header, vertex_shader, fragment_shader, &[])
+    }
+
+    /// Like [`Self::new`] but binds vertex-attribute names to explicit locations
+    /// before linking (`glBindAttribLocation`).
+    ///
+    /// fressh fork: GLSL ES 2.0 (`#version 100`) shaders have no
+    /// `layout(location=)`, so without this the linker assigns attribute locations
+    /// freely. Desktop/emulator GL uses declaration order (matching a hardcoded
+    /// `VertexAttribPointer(0/1, ..)` VBO setup), but the Mali-G715 driver does not
+    /// — so attributes bound to fixed slots read back garbage and rects (non-block
+    /// cursors, underlines) render nothing. Binding the locations here forces them
+    /// to match the VBO setup on every driver. Ignored on the GLSL3 path, where the
+    /// in-shader `layout(location=)` takes precedence.
+    pub fn new_with_attributes(
+        shader_version: ShaderVersion,
+        shader_header: Option<&str>,
+        vertex_shader: &'static str,
+        fragment_shader: &'static str,
+        attribute_locations: &[(&CStr, GLuint)],
+    ) -> Result<Self, ShaderError> {
         let vertex_shader =
             Shader::new(shader_version, shader_header, gl::VERTEX_SHADER, vertex_shader)?;
         let fragment_shader =
@@ -45,6 +66,10 @@ impl ShaderProgram {
         unsafe {
             gl::AttachShader(program.id(), vertex_shader.id());
             gl::AttachShader(program.id(), fragment_shader.id());
+            // Must run before LinkProgram to take effect.
+            for (name, location) in attribute_locations {
+                gl::BindAttribLocation(program.id(), *location, name.as_ptr());
+            }
             gl::LinkProgram(program.id());
             gl::GetProgramiv(program.id(), gl::LINK_STATUS, &mut success);
         }
