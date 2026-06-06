@@ -97,46 +97,59 @@ impl Gles2Renderer {
                 gl::STREAM_DRAW,
             );
 
-            let mut index = 0;
+            let program_id = program.id();
             let mut size = 0;
 
+            // fressh fork: bind each attribute to the location the LINKER actually
+            // assigned (queried by name), not a hardcoded 0,1,2,... in declaration
+            // order. GLSL ES 2.0 (#version 100) has no `layout(location=)`, and the
+            // program is linked without glBindAttribLocation, so the driver is free to
+            // assign attribute locations in any order. Desktop/emulator GL happens to
+            // use declaration order (so upstream's index-based setup works there), but
+            // the Mali-G715 driver does NOT — the color attributes landed on the wrong
+            // locations and read back as garbage (the root cause of the broken colors /
+            // blank text on real hardware). Querying glGetAttribLocation is correct on
+            // every driver, including the emulator.
             macro_rules! add_attr {
-                ($count:expr, $gl_type:expr, $type:ty) => {
-                    gl::VertexAttribPointer(
-                        index,
-                        $count,
-                        $gl_type,
-                        gl::FALSE,
-                        size_of::<TextVertex>() as i32,
-                        size as *const _,
-                    );
-                    gl::EnableVertexAttribArray(index);
+                ($name:expr, $count:expr, $gl_type:expr, $type:ty) => {
+                    let loc = gl::GetAttribLocation(program_id, concat!($name, "\0").as_ptr().cast());
+                    if loc >= 0 {
+                        let loc = loc as GLuint;
+                        gl::VertexAttribPointer(
+                            loc,
+                            $count,
+                            $gl_type,
+                            gl::FALSE,
+                            size_of::<TextVertex>() as i32,
+                            size as *const _,
+                        );
+                        gl::EnableVertexAttribArray(loc);
+                    }
 
                     #[allow(unused_assignments)]
                     {
                         size += $count * size_of::<$type>();
-                        index += 1;
                     }
                 };
             }
 
             // Cell coords.
-            add_attr!(2, gl::SHORT, i16);
+            add_attr!("cellCoords", 2, gl::SHORT, i16);
 
             // Glyph coords.
-            add_attr!(2, gl::SHORT, i16);
+            add_attr!("glyphCoords", 2, gl::SHORT, i16);
 
             // UV.
-            add_attr!(2, gl::FLOAT, u32);
+            add_attr!("uv", 2, gl::FLOAT, u32);
 
             // Color and bitmap color.
             //
             // These are packed together because of an OpenGL driver issue on macOS, which caused a
             // `vec3(u8)` text color and a `u8` for glyph color to cause performance regressions.
-            add_attr!(4, gl::UNSIGNED_BYTE, u8);
+            add_attr!("textColor", 4, gl::UNSIGNED_BYTE, u8);
 
             // Background color.
-            add_attr!(4, gl::UNSIGNED_BYTE, u8);
+            add_attr!("backgroundColor", 4, gl::UNSIGNED_BYTE, u8);
 
             // Cleanup.
             gl::BindVertexArray(0);

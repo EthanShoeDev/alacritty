@@ -13,15 +13,21 @@ mediump float max_rgb(mediump vec3 mask) {
 }
 
 void render_text() {
-    mediump vec4 mask = texture2D(mask, TexCoords);
-    mediump float m_rgb = max_rgb(mask.rgb);
+    // fressh fork: this local is named `texel` (upstream named it `mask`). Naming it
+    // `mask` shadows the `mask` sampler inside its own initializer; the Mali GLSL ES
+    // compiler binds the local there, so `texture2D(mask, ...)` resolves to
+    // `texture2D(vec4, vec2)` -> no matching overload -> the shader fails to compile ->
+    // the renderer never initializes -> blank terminal on device. (The desktop/emulator
+    // compiler is lenient and binds the sampler, so it only broke on real hardware.)
+    mediump vec4 texel = texture2D(mask, TexCoords);
+    mediump float m_rgb = max_rgb(texel.rgb);
 
     if (renderingPass == 1) {
-        gl_FragColor = vec4(mask.rgb, m_rgb);
+        gl_FragColor = vec4(texel.rgb, m_rgb);
     } else if (renderingPass == 2) {
-        gl_FragColor = bg * (vec4(m_rgb) - vec4(mask.rgb, m_rgb));
+        gl_FragColor = bg * (vec4(m_rgb) - vec4(texel.rgb, m_rgb));
     } else {
-        gl_FragColor = vec4(fg, 1.) * vec4(mask.rgb, m_rgb);
+        gl_FragColor = vec4(fg, 1.) * vec4(texel.rgb, m_rgb);
     }
 }
 
@@ -30,11 +36,12 @@ void render_bitmap() {
     if (renderingPass == 2) {
         discard;
     }
-    mediump vec4 mask = texture2D(mask, TexCoords);
+    // fressh fork: renamed `mask` -> `texel`, same self-shadow compile fix as render_text.
+    mediump vec4 texel = texture2D(mask, TexCoords);
     if (renderingPass == 1) {
-        gl_FragColor = mask.aaaa;
+        gl_FragColor = texel.aaaa;
     } else {
-        gl_FragColor = mask;
+        gl_FragColor = texel;
     }
 }
 
